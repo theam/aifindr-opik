@@ -116,6 +116,13 @@ services:
       backend:
         condition: service_started
 
+  aifindr-evaluations-runner:
+    build:
+      context: ../../apps/aifindr-evaluations-runner
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+
 networks:
   default:
 
