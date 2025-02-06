@@ -3,9 +3,11 @@ import os
 from opik import Opik
 from opik.evaluation import evaluate
 from opik.evaluation.metrics import (Hallucination, Moderation, AnswerRelevance, ContextRecall, ContextPrecision)
-  
-os.environ["OPIK_URL_OVERRIDE"] = "http://host.docker.internal:5173/api"
-os.environ["OPENAI_API_KEY"] = ""
+from config import settings
+
+
+os.environ["OPIK_URL_OVERRIDE"] = settings.OPIK_URL
+os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
 
 client = Opik()
 dataset = client.get_dataset(name="BCP eval dataset")

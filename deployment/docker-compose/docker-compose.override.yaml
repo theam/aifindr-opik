@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   mysql:
     ports:
@@ -24,3 +25,7 @@ services:
   frontend:
     ports:
       - "5173:5173" # Exposing frontend server port to host
+
+  aifindr-evaluations-runner:
+    env_file:
+      - ../../apps/aifindr-evaluations-runner/.env
