@@ -121,8 +121,6 @@ services:
     build:
       context: ../../apps/aifindr-evaluations-runner
       dockerfile: Dockerfile
-    environment:
-      - OPIK_URL=http://host.docker.internal:5173/api
     ports:
       - "8001:8001"
 
