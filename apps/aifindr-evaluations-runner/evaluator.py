@@ -1,47 +1,58 @@
-import os
-
+import json
 from opik import Opik
 from opik.evaluation import evaluate
-from opik.evaluation.metrics import (Hallucination, Moderation, AnswerRelevance, ContextRecall, ContextPrecision)
-from settings import settings
+from opik.evaluation.metrics import (IsJson, Hallucination, AnswerRelevance, ContextRecall, ContextPrecision)
+from pydantic import BaseModel
+from workflows import run_workflow
 
 client = Opik()
-dataset = client.get_dataset(name="BCP eval dataset")
-prompt = client.get_prompt(name="BCP eval prompt")
 
-def evaluation_task(dataset_item):
-    print("Experiment item: ", dataset_item)
-    # your LLM application is called here
+class EvaluationParams(BaseModel):
+    dataset_name: str
+    experiment_name: str
+    project_name: str
+    base_prompt_name: str
+    workflow: str
 
 
+def evaluation_task(dataset_item, workflow: str):
+    response_content = run_workflow(workflow, dataset_item['query'])
+
+    parsed_response = json.loads(response_content.response)
+    print(json.dumps(parsed_response))
 
     result = {
         "input": dataset_item['query'],
-        "output": "Es madrid",
-        "context": []
+        "output": response_content.response,
+        "context": response_content.context,
     }
     return result
 
+def build_evaluation_task(params: EvaluationParams):
+    return lambda dataset_item: evaluation_task(dataset_item, params.workflow)
 
-def execute_evaluation(dataset_name: str, experiment_name: str, project_name: str, base_prompt_name: str):
+
+def execute_evaluation(params: EvaluationParams):
     client = Opik()
-    dataset = client.get_dataset(name=dataset_name)
-    base_prompt = client.get_prompt(name=base_prompt_name)
-    metrics = [Hallucination(), Moderation(), AnswerRelevance(), ContextRecall(), ContextPrecision()]
-
-    print("Base prompt: ", base_prompt)
+    dataset = client.get_dataset(name=params.dataset_name)
+    base_prompt = client.get_prompt(name=params.base_prompt_name)
+    metrics = [IsJson(), AnswerRelevance(), Hallucination(), ContextRecall()]
+    print("Base prompt: ", base_prompt.prompt)
+    # TODO: build the metric with the base prompt
     
     eval_results = evaluate(
-        experiment_name=experiment_name,
+        experiment_name=params.experiment_name,
         dataset=dataset, 
-        task=evaluation_task,
+        task=build_evaluation_task(params),
         scoring_metrics=metrics,
-        project_name=project_name,
+        project_name=params.project_name,
         experiment_config={
-            "pepe": "paco"
+            
         },
         scoring_key_mapping={"expected_output": "criteria"},
-        prompt=base_prompt
+        prompt=base_prompt,
+        task_threads=10,
+        nb_samples=1
     )
     
     return eval_results

@@ -4,3 +4,5 @@ pydantic==2.10.6
 opik==1.4.10
 pydantic-settings==2.7.1
 python-dotenv==1.0.1
+types-requests>=2.31.0.20240311
+sseclient-py==1.7.2
