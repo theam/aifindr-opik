@@ -18,5 +18,3 @@ class Settings(BaseSettings):
         extra = "ignore"  # Permite ignorar variables extra
 
 settings = Settings()
-
-print("Settings: ", settings)

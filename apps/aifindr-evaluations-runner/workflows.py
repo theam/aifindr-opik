@@ -1,3 +1,4 @@
+import logging
 import time
 import json
 import requests
@@ -10,15 +11,9 @@ MAX_RETRIES = 3
 RETRIEVAL_EVENT_ID_PREFIX = "similarity_search_by_text"
 LLM_EVENT_ID_PREFIX = "llm"
 
+logger = logging.getLogger(__name__)
 
 class WorkflowResponse(BaseModel):
-    """
-    Response model for workflow execution results.
-    
-    Attributes:
-        context: Retrieved context from similarity search
-        response: Combined LLM response
-    """
     context: Optional[List[Any]] = None
     response: str = ""
 
@@ -61,6 +56,7 @@ def _make_workflow_request(workflow: str, query: str) -> WorkflowResponse:
     Raises:
         requests.exceptions.RequestException: If the request fails
     """
+    logger.info(f"Running workflow: {workflow} with query: {query}")
     response = requests.post(
         f"{settings.ELLMENTAL_API_URL}{workflow}",
         stream=True,
