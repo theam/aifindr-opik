@@ -61,6 +61,5 @@ def execute_evaluation(params: EvaluationParams):
         },
         scoring_key_mapping={"expected_output": "criteria"}, # Used by Context* related metrics
         prompt=base_prompt,
-        task_threads=20,
-        nb_samples=3
+        task_threads=20
     )
