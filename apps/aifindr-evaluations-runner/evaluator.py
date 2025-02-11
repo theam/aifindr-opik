@@ -1,20 +1,26 @@
-import json
 from opik import Opik
 from opik.evaluation import evaluate
-from opik.evaluation.metrics import (IsJson, Hallucination, AnswerRelevance, ContextRecall, ContextPrecision)
-from pydantic import BaseModel
+from opik.evaluation.metrics import (Hallucination, ContextRecall, ContextPrecision)
 from workflows import run_workflow
 from metrics.follows_criteria import FollowsCriteria
+from pydantic import BaseModel
+from enum import Enum
 
 client = Opik()
 
+class ExperimentStatus(Enum):
+    RUNNING = "running"
+    COMPLETED = "completed" # Not used yet
+    FAILED = "failed" # Not used yet
+
+
 class EvaluationParams(BaseModel):
+    task_id: str
     dataset_name: str
     experiment_name: str
     project_name: str
     base_prompt_name: str
     workflow: str
-
 
 def evaluation_task(dataset_item, workflow: str):
     response_content = run_workflow(workflow, dataset_item['query'])
@@ -36,16 +42,14 @@ def build_evaluation_task(params: EvaluationParams):
 
 
 def execute_evaluation(params: EvaluationParams):
-    client = Opik()
     dataset = client.get_dataset(name=params.dataset_name)
     base_prompt = client.get_prompt(name=params.base_prompt_name)
-    print("Base prompt: ", base_prompt.prompt)
     if not base_prompt:
         raise ValueError(f"No base prompt found with name '{params.base_prompt_name}'")
-    # metrics = [IsJson(), AnswerRelevance(), Hallucination(), ContextRecall(), ContextPrecision(), FollowsCriteria(base_prompt.prompt)]
-    metrics = [Hallucination(), FollowsCriteria(base_prompt.prompt)]
     
-    eval_results = evaluate(
+    metrics = [FollowsCriteria(base_prompt.prompt), Hallucination(), ContextRecall(), ContextPrecision()]
+    
+    evaluate(
         experiment_name=params.experiment_name,
         dataset=dataset, 
         task=build_evaluation_task(params),
@@ -53,10 +57,10 @@ def execute_evaluation(params: EvaluationParams):
         project_name=params.project_name,
         experiment_config={
             "base_prompt_version": base_prompt.commit,
+            "task_id": params.task_id
         },
         scoring_key_mapping={"expected_output": "criteria"}, # Used by Context* related metrics
         prompt=base_prompt,
         task_threads=20,
+        nb_samples=3
     )
-    
-    return eval_results

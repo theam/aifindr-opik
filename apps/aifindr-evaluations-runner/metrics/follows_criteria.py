@@ -38,11 +38,18 @@ class FollowsCriteria(base_metric.BaseMetric):
 {prompt_template}
 -----
 Answer with a json with the following format:
+
 {{{{
-    "score": <score float number between 0 and 1. 0 means the output does not follow the criteria at all, 1 means it follows the criteria perfectly. Any number between 0 and 1 means it follows the criteria to some extent: the closest to 1, the more it follows it.>,
+    "score": <score float number between 0.0 and 1.0>,
     "reason": "<reason for the score>"
 }}}}
 
+Follow this instructions to fill the score:
+- **0.0**: The response does not follow the criteria at all.
+- **0.1 - 0.3**: The response is somewhat related to the criteria, but it doesn't follow it.
+- **0.4 - 0.6**: The response partially follows the criteria, following some points, but not others. Or those points that follow are only partially correct.
+- **0.7 - 0.9**: The response either fulfills all criteria but it is lacking details or misses between 10-30% of the criteria points.
+- **1.0**: The response perfectly follows the criteria completely.
         """.lstrip().rstrip()
 
     def score(self, output: str, criteria: str, **ignored_kwargs: Any):
@@ -62,9 +69,3 @@ Answer with a json with the following format:
             value=response_dict["score"],
             reason=response_dict["reason"]
         )
-    
-    def ascore(self, output: str, criteria: str, **ignored_kwargs: Any):
-        # TODO: Por ahora no funciona
-        print("SCORE ASYNC")
-        # await self._model.agenerate_string
-        return self.score(output, criteria)
