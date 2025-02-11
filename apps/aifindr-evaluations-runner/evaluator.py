@@ -54,10 +54,9 @@ def execute_evaluation(params: EvaluationParams):
         experiment_config={
             "base_prompt_version": base_prompt.commit,
         },
-        scoring_key_mapping={"expected_output": "criteria"}, # Used by Context* related
+        scoring_key_mapping={"expected_output": "criteria"}, # Used by Context* related metrics
         prompt=base_prompt,
-        task_threads=10,
-        nb_samples=2
+        task_threads=20,
     )
     
     return eval_results
