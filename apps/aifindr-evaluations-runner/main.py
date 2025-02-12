@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-TASK_QUEUE: asyncio.Queue[EvaluationParams] = asyncio.Queue(maxsize=100)  # Maximum number of evaluations in queue
+TASK_QUEUE: asyncio.Queue[EvaluationParams] = asyncio.Queue(maxsize=10)  # Maximum number of evaluations in queue
 MAX_CONCURRENT_TASKS = 5  # Number of concurrent evaluations
 
 class RunEvaluationsRequest(BaseModel):
@@ -31,12 +31,12 @@ async def process_queue():
         # Get a task from the queue
         evaluation_params = await TASK_QUEUE.get()
         try:
-            logger.info(f"PROCESSING EVALUATION: {evaluation_params.task_id}")
-            execute_evaluation(evaluation_params)
+            # Run execute_evaluation in a thread pool so that it doesn't block the event loop
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, execute_evaluation, evaluation_params)
         except Exception as e:
             logger.error(f"Error processing evaluation: {str(e)}")
         finally:
-            # Mark the task as done
             TASK_QUEUE.task_done()
 
 @app.on_event("startup")
@@ -50,7 +50,6 @@ async def run_evaluation(request: RunEvaluationsRequest):
     try:
         # Generate task ID
         task_id = str(uuid.uuid4())
-        
         # Create EvaluationParams with all fields from request plus task_id
         evaluation_params = EvaluationParams(
             task_id=task_id,
@@ -61,12 +60,11 @@ async def run_evaluation(request: RunEvaluationsRequest):
             workflow=request.workflow
         )
 
-        logger.info(f"Try adding evaluation task to queue: {evaluation_params}")
         try:
             TASK_QUEUE.put_nowait(evaluation_params)
             logger.info(f"Evaluation task added to queue: {evaluation_params}")
         except asyncio.QueueFull:
-            logger.error("Queue is full. Cannot add more tasks.")
+            logger.error(f"Queue is full. Evaluation task not added to the queue: {evaluation_params}")
             raise HTTPException(status_code=503, detail="Server is currently at maximum capacity. Please try again later.")
         
         return RunEvaluationsResponse(status=ExperimentStatus.RUNNING.value, task_id=task_id)
