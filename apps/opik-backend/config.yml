@@ -130,10 +130,13 @@ authentication:
   # Description: Configures how to authenticate requests which originates from the sdk
   sdk:
     url: ${AUTH_SDK_URL:-''}
+    # AIFindr: Whether the URL is from auth0 (ended in /userinfo)
+    isAuth0: ${AUTH_IS_AUTH0:-false}
   # Default:
   # Description: Configures how to authenticate requests which originates from the ui
   ui:
     url: ${AUTH_UI_URL:-''}
+    isAuth0: false
 
 # https://www.dropwizard.io/en/stable/manual/configuration.html#servers
 server:

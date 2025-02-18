@@ -133,8 +133,8 @@ class RemoteAuthServiceTest {
 
     private RemoteAuthService getService(RequestContext requestContext) {
         return new RemoteAuthService(client,
-                new AuthenticationConfig.UrlConfig(wireMock.server().url("/auth")),
-                new AuthenticationConfig.UrlConfig(wireMock.server().url("/")),
+                new AuthenticationConfig.UrlConfig(wireMock.server().url("/auth"), false),
+                new AuthenticationConfig.UrlConfig(wireMock.server().url("/"), false),
                 () -> requestContext, new NoopCacheService(), new DummyLockService());
     }
 

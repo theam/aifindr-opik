@@ -11,6 +11,9 @@ import { SheetTitle } from "@/components/ui/sheet";
 import ApiKeyCard from "@/components/pages-shared/onboarding/ApiKeyCard/ApiKeyCard";
 import GoogleColabCard from "@/components/pages-shared/onboarding/GoogleColabCard/GoogleColabCard";
 import ConfigureEnvCode from "@/components/pages-shared/onboarding/ConfigureEnvCode/ConfigureEnvCode";
+import { Activity } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import useExperimentRunMutation from "@/api/datasets/useExperimentRun";
 
 export enum EVALUATOR_MODEL {
   equals = "equals",
@@ -143,6 +146,7 @@ const AddExperimentDialog: React.FunctionComponent<
   AddExperimentDialogProps
 > = ({ open, setOpen }) => {
   const workspaceName = useAppStore((state) => state.activeWorkspaceName);
+  const experimentRunMutation = useExperimentRunMutation();
 
   const [isLoadedMore, setIsLoadedMore] = useState(false);
   const [datasetName, setDatasetName] = useState("");
@@ -294,6 +298,28 @@ eval_results = evaluate(
     );
   };
 
+  const handleRunExperiment = useCallback(() => {
+    if (!datasetName) {
+      alert("Please select a dataset first");
+      return;
+    }
+
+    experimentRunMutation.mutate(
+      {
+        datasetName,
+        experimentName: "my_evaluation",
+        projectName: workspaceName,
+        basePromptName: "default",
+        workflow: "default"
+      },
+      {
+        onSuccess: () => {
+          setOpen(false);
+        }
+      }
+    );
+  }, [datasetName, workspaceName, experimentRunMutation, setOpen]);
+
   return (
     <SideDialog open={open} setOpen={openChangeHandler}>
       <div className="pb-20">
@@ -342,6 +368,14 @@ eval_results = evaluate(
           </div>
 
           <div className="flex w-[250px] shrink-0 flex-col gap-6 self-start">
+            <Button 
+              variant="outline" 
+              onClick={handleRunExperiment}
+              disabled={!datasetName || experimentRunMutation.isPending}
+            >
+              <Activity className="mr-2 size-4" />
+              {experimentRunMutation.isPending ? "Running..." : "Run experiment"}
+            </Button>
             <ApiKeyCard />
             <GoogleColabCard link="https://colab.research.google.com/github/comet-ml/opik/blob/main/apps/opik-documentation/documentation/docs/cookbook/quickstart_notebook.ipynb" />
           </div>

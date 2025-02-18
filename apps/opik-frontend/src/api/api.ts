@@ -13,6 +13,7 @@ export const CODE_EXECUTOR_SERVICE_URL = import.meta.env
 export const PROJECTS_REST_ENDPOINT = "/v1/private/projects/";
 export const DATASETS_REST_ENDPOINT = "/v1/private/datasets/";
 export const EXPERIMENTS_REST_ENDPOINT = "/v1/private/experiments/";
+export const EXPERIMENTS_RUN_ENDPOINT = "/v1/private/experiments/run";
 export const FEEDBACK_DEFINITIONS_REST_ENDPOINT =
   "/v1/private/feedback-definitions/";
 export const TRACES_REST_ENDPOINT = "/v1/private/traces/";
