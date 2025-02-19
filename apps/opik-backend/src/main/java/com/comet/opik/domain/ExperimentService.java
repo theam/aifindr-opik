@@ -1,36 +1,5 @@
 package com.comet.opik.domain;
 
-import com.clickhouse.client.ClickHouseException;
-import com.comet.opik.api.BiInformationResponse;
-import com.comet.opik.api.Dataset;
-import com.comet.opik.api.DatasetCriteria;
-import com.comet.opik.api.DatasetLastExperimentCreated;
-import com.comet.opik.api.Experiment;
-import com.comet.opik.api.ExperimentSearchCriteria;
-import com.comet.opik.api.PromptVersion;
-import com.comet.opik.api.error.EntityAlreadyExistsException;
-import com.comet.opik.api.events.ExperimentCreated;
-import com.comet.opik.api.events.ExperimentsDeleted;
-import com.comet.opik.infrastructure.auth.RequestContext;
-import com.comet.opik.utils.AsyncUtils;
-import com.google.common.base.Preconditions;
-import com.google.common.eventbus.EventBus;
-import io.opentelemetry.instrumentation.annotations.WithSpan;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
-import jakarta.ws.rs.ClientErrorException;
-import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.core.Response;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.SetUtils;
-import org.apache.commons.lang3.StringUtils;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,8 +9,46 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.comet.opik.api.Experiment.ExperimentPage;
-import static com.comet.opik.api.Experiment.PromptVersionLink;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.SetUtils;
+import org.apache.commons.lang3.StringUtils;
+
+import com.clickhouse.client.ClickHouseException;
+import com.comet.opik.api.BiInformationResponse;
+import com.comet.opik.api.Dataset;
+import com.comet.opik.api.DatasetCriteria;
+import com.comet.opik.api.DatasetLastExperimentCreated;
+import com.comet.opik.api.Experiment;
+import com.comet.opik.api.Experiment.ExperimentPage;
+import com.comet.opik.api.Experiment.PromptVersionLink;
+import com.comet.opik.api.ExperimentRunRequest;
+import com.comet.opik.api.ExperimentRunResponse;
+import com.comet.opik.api.ExperimentSearchCriteria;
+import com.comet.opik.api.PromptVersion;
+import com.comet.opik.api.error.EntityAlreadyExistsException;
+import com.comet.opik.api.events.ExperimentCreated;
+import com.comet.opik.api.events.ExperimentsDeleted;
+import com.comet.opik.infrastructure.OpikConfiguration;
+import com.comet.opik.infrastructure.auth.RequestContext;
+import com.comet.opik.utils.AsyncUtils;
+import com.google.common.base.Preconditions;
+import com.google.common.eventbus.EventBus;
+
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Singleton
 @RequiredArgsConstructor(onConstructor = @__(@Inject))
@@ -55,6 +62,8 @@ public class ExperimentService {
     private final @NonNull NameGenerator nameGenerator;
     private final @NonNull EventBus eventBus;
     private final @NonNull PromptService promptService;
+    private final @NonNull Client client;
+    private final @NonNull OpikConfiguration configuration;
 
     @WithSpan
     public Mono<ExperimentPage> find(
@@ -442,5 +451,24 @@ public class ExperimentService {
     @WithSpan
     public Mono<Long> getDailyCreatedCount() {
         return experimentDAO.getDailyCreatedCount();
+    }
+
+    @WithSpan
+    public Mono<ExperimentRunResponse> runExperiment(@NonNull ExperimentRunRequest request) {
+        log.info("Starting experiment run for dataset '{}', experiment '{}'", 
+                request.datasetName(), request.experimentName());
+                
+        return Mono.fromCallable(() ->
+            client.target(configuration.getExperimentRunner().getUrl())
+                .request(MediaType.APPLICATION_JSON)
+                .post(Entity.json(request), ExperimentRunResponse.class)
+        )
+        .doOnSuccess(response -> 
+            log.info("Successfully triggered experiment run. Status: '{}', Task ID: '{}'", 
+                response.status(), response.taskId())
+        )
+        .doOnError(error -> 
+            log.error("Error triggering experiment run: {}", error.getMessage())
+        );
     }
 }

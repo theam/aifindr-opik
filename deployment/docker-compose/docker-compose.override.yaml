@@ -19,6 +19,7 @@ services:
       AUTH_UI_URL: https://booster-id.us.auth0.com/userinfo
       AUTH_SDK_URL: https://booster-id.us.auth0.com/userinfo
       AUTH_IS_AUTH0: true
+      EXPERIMENT_RUNNER_URL: http://aifindr-evaluations-runner:8001/evaluations/run
     ports:
       - "8080:8080" # Exposing backend HTTP port to host
       - "3003:3003" # Exposing backend OpenAPI specification port to host
