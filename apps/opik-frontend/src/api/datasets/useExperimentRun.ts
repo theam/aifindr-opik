@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import get from "lodash/get";
-import api, { EXPERIMENTS_RUN_ENDPOINT } from "@/api/api";
+import api, { EXPERIMENTS_REST_ENDPOINT } from "@/api/api";
 import { useToast } from "@/components/ui/use-toast";
 
 type ExperimentRunParams = {
@@ -18,7 +18,7 @@ const useExperimentRunMutation = () => {
 
   return useMutation({
     mutationFn: async (params: ExperimentRunParams) => {
-      const { data } = await api.post(EXPERIMENTS_RUN_ENDPOINT, params);
+      const { data } = await api.post(EXPERIMENTS_REST_ENDPOINT + 'run', params);
       return data;
     },
     onError: (error: AxiosError) => {
