@@ -136,13 +136,10 @@ class RemoteAuthService implements AuthService {
     }
 
     private ValidatedAuthCredentials validateApiKeyAndGetCredentials(String workspaceName, String apiKey, String path) {
-        log.info("----------> 1");
         Optional<AuthCredentials> credentials = cacheService.resolveApiKeyUserAndWorkspaceIdFromCache(apiKey,
                 workspaceName);
 
-        log.info("----------> 2");
         if (credentials.isEmpty()) {
-            log.info("----------> 3 {}", apiKeyAuthUrl.url());
             log.debug("User and workspace id not found in cache for API key");
             AuthRequest authRequest = new AuthRequest(workspaceName, path);
             try (var response = client.target(URI.create(apiKeyAuthUrl.url()))
@@ -152,7 +149,6 @@ class RemoteAuthService implements AuthService {
                             apiKey)
                     .post(Entity.json(authRequest))) {
 
-                log.info("----------> 4 {}", response);
                 Auth0Verification auth0Verification = apiKeyAuthUrl.isAuth0() ? new Auth0Verification(authRequest, apiKey) : null;
                 AuthResponse authResponse = verifyResponse(response, auth0Verification);
                 return new ValidatedAuthCredentials(true, authResponse.user(), authResponse.workspaceId());
@@ -164,7 +160,6 @@ class RemoteAuthService implements AuthService {
 
     private AuthResponse verifyResponse(Response response, Auth0Verification auth0Verification) {
         AuthResponse authResponse;
-        log.info("----------> 5");
         if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
             // AIFindr: add Auth0 response support
             if (auth0Verification != null) {
