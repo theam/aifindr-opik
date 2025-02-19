@@ -1,8 +1,23 @@
 package com.comet.opik.infrastructure.auth;
 
-import com.comet.opik.api.AuthenticationErrorResponse;
+import java.net.URI;
+import java.util.Base64;
+import java.util.List;
+import java.util.Optional;
+
+import org.apache.commons.lang3.StringUtils;
+
+import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_API_KEY;
+import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_WORKSPACE;
+import static com.comet.opik.api.AuthenticationErrorResponse.NOT_ALLOWED_TO_ACCESS_WORKSPACE;
 import com.comet.opik.domain.ProjectService;
+import com.comet.opik.infrastructure.AuthenticationConfig.UrlConfig;
+import com.comet.opik.infrastructure.auth.CacheService.AuthCredentials;
 import com.comet.opik.infrastructure.lock.LockService;
+import com.comet.opik.infrastructure.lock.LockService.Lock;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.inject.Provider;
 import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -15,23 +30,8 @@ import jakarta.ws.rs.core.Response;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
-import java.net.URI;
-import java.util.Optional;
-import java.util.List;
-import java.util.Base64;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_API_KEY;
-import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_WORKSPACE;
-import static com.comet.opik.api.AuthenticationErrorResponse.NOT_ALLOWED_TO_ACCESS_WORKSPACE;
-import static com.comet.opik.infrastructure.AuthenticationConfig.UrlConfig;
-import static com.comet.opik.infrastructure.auth.AuthCredentialsCacheService.AuthCredentials;
-import static com.comet.opik.infrastructure.lock.LockService.Lock;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -136,10 +136,13 @@ class RemoteAuthService implements AuthService {
     }
 
     private ValidatedAuthCredentials validateApiKeyAndGetCredentials(String workspaceName, String apiKey, String path) {
+        log.info("----------> 1");
         Optional<AuthCredentials> credentials = cacheService.resolveApiKeyUserAndWorkspaceIdFromCache(apiKey,
                 workspaceName);
 
+        log.info("----------> 2");
         if (credentials.isEmpty()) {
+            log.info("----------> 3 {}", apiKeyAuthUrl.url());
             log.debug("User and workspace id not found in cache for API key");
             AuthRequest authRequest = new AuthRequest(workspaceName, path);
             try (var response = client.target(URI.create(apiKeyAuthUrl.url()))
@@ -149,6 +152,7 @@ class RemoteAuthService implements AuthService {
                             apiKey)
                     .post(Entity.json(authRequest))) {
 
+                log.info("----------> 4 {}", response);
                 Auth0Verification auth0Verification = apiKeyAuthUrl.isAuth0() ? new Auth0Verification(authRequest, apiKey) : null;
                 AuthResponse authResponse = verifyResponse(response, auth0Verification);
                 return new ValidatedAuthCredentials(true, authResponse.user(), authResponse.workspaceId());
@@ -160,6 +164,7 @@ class RemoteAuthService implements AuthService {
 
     private AuthResponse verifyResponse(Response response, Auth0Verification auth0Verification) {
         AuthResponse authResponse;
+        log.info("----------> 5");
         if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
             // AIFindr: add Auth0 response support
             if (auth0Verification != null) {
@@ -187,15 +192,12 @@ class RemoteAuthService implements AuthService {
             }
 
             return authResponse;
-        } else if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-            var errorResponse = response.readEntity(AuthenticationErrorResponse.class);
-            throw new ClientErrorException(errorResponse.msg(), Response.Status.UNAUTHORIZED);
+        } else if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()
+                || response.getStatus() == Response.Status.BAD_REQUEST.getStatusCode()) {
+            throw new ClientErrorException(response.getStatusInfo().getReasonPhrase(), response.getStatus());
         } else if (response.getStatus() == Response.Status.FORBIDDEN.getStatusCode()) {
             // EM never returns FORBIDDEN as of now
             throw new ClientErrorException(NOT_ALLOWED_TO_ACCESS_WORKSPACE, Response.Status.FORBIDDEN);
-        } else if (response.getStatus() == Response.Status.BAD_REQUEST.getStatusCode()) {
-            var errorResponse = response.readEntity(AuthenticationErrorResponse.class);
-            throw new ClientErrorException(errorResponse.msg(), Response.Status.BAD_REQUEST);
         }
 
         log.error("Unexpected error while authenticating user, received status code: {}", response.getStatus());
