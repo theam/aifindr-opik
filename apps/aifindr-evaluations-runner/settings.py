@@ -1,3 +1,6 @@
+import os
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 
@@ -15,6 +18,15 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
-        extra = "ignore"  # Permite ignorar variables extra
+        extra = "ignore"  # Allow extra variables
+
+class EnvSettings(BaseSettings):
+    settings: Settings = Settings()
+
+@lru_cache() # Cache settings to avoid re-reading the .env file on each call
+def get_settings() -> Settings:
+    if not os.getenv("SETTINGS"):
+        return Settings()
+    return EnvSettings().settings
 
 settings = Settings()

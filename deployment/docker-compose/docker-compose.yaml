@@ -121,6 +121,8 @@ services:
     build:
       context: ../../apps/aifindr-evaluations-runner
       dockerfile: Dockerfile
+    env_file:
+      - ../../apps/aifindr-evaluations-runner/.env
     ports:
       - "8001:8001"
 
