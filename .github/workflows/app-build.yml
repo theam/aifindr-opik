@@ -21,9 +21,11 @@ env:
   GIT_REF: ${{ github.ref }} # GitHub Context
   FRONTEND_BUILD_CONTEXT: ./apps/opik-frontend # Repository VAR
   BACKEND_BUILD_CONTEXT: ./apps/opik-backend # Repository VAR
+  EVALUATOR_BUILD_CONTEXT: ./apps/aifindr-evaluations-runner # Repository VAR
   ECR_REGISTRY: ${{ vars.ECR_REGISTRY }} # Repository VAR
   ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }} # Repository VAR
   ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }} # Repository VAR
+  ECR_EVALUATOR_REPOSITORY: ${{ vars.ECR_EVALUATOR_REPOSITORY }} # Repository VAR
 
 jobs:
   # Check if latest tag is a release candidate and stop flow if it is
@@ -153,6 +155,18 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$APP_VERSION $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$APP_VERSION
           docker push $ECR_REGISTRY/$ECR_BACKEND_REPOSITORY:$IMAGE_TAG
+
+          if [ $DEBUG == "true" ]; then
+            echo "building evaluator image into: $ECR_REGISTRY/$ECR_EVALUATOR_REPOSITORY:$APP_VERSION"
+          fi
+
+          docker build -t $ECR_REGISTRY/$ECR_EVALUATOR_REPOSITORY:$APP_VERSION \
+            -f $EVALUATOR_BUILD_CONTEXT/Dockerfile \
+            $EVALUATOR_BUILD_CONTEXT
+
+          docker tag $ECR_REGISTRY/$ECR_EVALUATOR_REPOSITORY:$APP_VERSION $ECR_REGISTRY/$ECR_EVALUATOR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_EVALUATOR_REPOSITORY:$APP_VERSION
+          docker push $ECR_REGISTRY/$ECR_EVALUATOR_REPOSITORY:$IMAGE_TAG
 
   ecs-deploy:
     environment: "${{ inputs.environment || 'production' }}"
