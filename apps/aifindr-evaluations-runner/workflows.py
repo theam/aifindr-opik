@@ -7,7 +7,7 @@ from sseclient import SSEClient
 from pydantic import BaseModel
 from typing import Optional, List, Any
 
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 RETRIEVAL_EVENT_ID_PREFIX = "similarity_search_by_text"
 LLM_EVENT_ID_PREFIX = "llm"
 
@@ -35,7 +35,7 @@ def run_workflow(workflow: str, query: str) -> WorkflowResponse:
             return _make_workflow_request(workflow, query)
         except Exception as e:
             wait_time = 0.5 * (retry_count + 1)  # Increasing delay between retries
-            print(f"Request failed with error: {e}. Waiting {wait_time}s before retrying... ({retry_count + 1}/{MAX_RETRIES})")
+            logger.warn(f"Request failed with error: {e}. Waiting {wait_time}s before retrying... ({retry_count + 1}/{MAX_RETRIES})")
             retry_count += 1
             time.sleep(wait_time)
             
@@ -85,6 +85,7 @@ def _make_workflow_request(workflow: str, query: str) -> WorkflowResponse:
         try:
             data = json.loads(event.data)
             if event.id.startswith(RETRIEVAL_EVENT_ID_PREFIX):
+                logger.debug(f"Retrieval response: {data}")
                 retrieval_response = data['response']['hits']
             elif event.id.startswith(LLM_EVENT_ID_PREFIX) and 'content' in data['delta']['message']:
                 llm_response += data['delta']['message']['content']

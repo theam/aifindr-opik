@@ -58,8 +58,6 @@ Follow this instructions to fill the score:
             output=output,
             criteria=criteria
         )
-
-        print("Prompt total: ", prompt)
         # Generate and parse the response from the LLM
         response = self.llm_client.generate_string(input=prompt, response_format=FollowsCriteriaResult)
 

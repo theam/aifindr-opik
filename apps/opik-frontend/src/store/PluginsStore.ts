@@ -19,7 +19,7 @@ type PluginStore = {
   setupPlugins: (folderName: string) => Promise<void>;
 };
 
-const VALID_PLUGIN_FOLDER_NAMES = ["comet"];
+const VALID_PLUGIN_FOLDER_NAMES = ["comet", "aifindr"];
 const PLUGIN_NAMES = [
   "Logo",
   "UserMenu",

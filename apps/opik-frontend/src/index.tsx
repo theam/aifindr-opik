@@ -10,5 +10,5 @@ import "react18-json-view/src/style.css";
 const container = document.getElementById("root") as HTMLDivElement;
 const root = createRoot(container);
 
-usePluginsStore.getState().setupPlugins(import.meta.env.MODE);
+usePluginsStore.getState().setupPlugins(import.meta.env.VITE_PLUGINS_SCOPE);
 root.render(<App />);
