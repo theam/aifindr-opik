@@ -24,7 +24,7 @@ type WorkspacePreloaderProps = {
 const WorkspacePreloader: React.FunctionComponent<WorkspacePreloaderProps> = ({
   children,
 }) => {
-  const { data: user, isLoading } = useUser();
+  const { data: user, isLoading, loginWithRedirect } = useUser();
   const { data: workspaces } = useAllUserWorkspaces({
     enabled: !!user?.loggedIn,
   });
@@ -40,10 +40,13 @@ const WorkspacePreloader: React.FunctionComponent<WorkspacePreloaderProps> = ({
   }
 
   if (!user || !user.loggedIn) {
-    window.location.href =
-      workspaceNameFromURL === DEFAULT_WORKSPACE_NAME || !workspaceNameFromURL
-        ? buildUrl("login")
-        : buildUrl("login", workspaceNameFromURL);
+    loginWithRedirect({
+      appState: { 
+        returnTo: workspaceNameFromURL 
+          ? `/${workspaceNameFromURL}` 
+          : '/'
+      }
+    });
     return null;
   }
 

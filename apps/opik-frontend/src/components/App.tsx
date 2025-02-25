@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryParamProvider } from "use-query-params";
 import { WindowHistoryAdapter } from "use-query-params/adapters/window";
 import useCustomScrollbarClass from "@/hooks/useCustomScrollbarClass";
+import { Auth0Provider } from '@auth0/auth0-react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,15 +19,26 @@ const queryClient = new QueryClient({
 function App() {
   useCustomScrollbarClass();
 
+  const auth0Config = {
+    domain: import.meta.env.VITE_AUTH0_DOMAIN || '',
+    clientId: import.meta.env.VITE_AUTH0_CLIENT_ID || '',
+    authorizationParams: {
+      redirect_uri: window.location.origin,
+      audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+    },
+  };
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <QueryParamProvider adapter={WindowHistoryAdapter}>
-        <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-          <RouterProvider router={router} />
-          <Toaster />
-        </ThemeProvider>
-      </QueryParamProvider>
-    </QueryClientProvider>
+    <Auth0Provider {...auth0Config}>
+      <QueryClientProvider client={queryClient}>
+        <QueryParamProvider adapter={WindowHistoryAdapter}>
+          <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+            <RouterProvider router={router} />
+            <Toaster />
+          </ThemeProvider>
+        </QueryParamProvider>
+      </QueryClientProvider>
+    </Auth0Provider>
   );
 }
 

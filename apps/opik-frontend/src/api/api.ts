@@ -1,12 +1,18 @@
 import { UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
-
+import { ACCESS_TOKEN_KEY } from "@/constants/user";
 export const BASE_API_URL = import.meta.env.VITE_BASE_API_URL || "/api";
 const axiosInstance = axios.create({
   baseURL: BASE_API_URL,
 });
-
 axiosInstance.defaults.withCredentials = true;
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 export const CODE_EXECUTOR_SERVICE_URL = import.meta.env
   .VITE_GET_STARTED_API_URL;
