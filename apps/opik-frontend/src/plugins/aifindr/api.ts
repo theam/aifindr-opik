@@ -3,9 +3,8 @@ import { UseQueryOptions } from "@tanstack/react-query";
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_AIFINDR_API_URL,
+  baseURL: import.meta.env.VITE_AIFINDR_DOMAIN,
 });
-axiosInstance.defaults.withCredentials = true;
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem(ACCESS_TOKEN_KEY);
   if (token) {

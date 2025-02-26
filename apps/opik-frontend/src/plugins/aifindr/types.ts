@@ -26,9 +26,18 @@ export interface Workspace {
   createdAt: number;
   workspaceId: string;
   workspaceName: string;
+  workspaceDisplayName: string;
   workspaceOwner: string;
   workspaceCreator: string;
   organizationId: string;
   collaborationFeaturesDisabled: boolean;
   default: boolean;
+}
+
+export interface Project {
+  ID: number;
+  name: string;
+  slug: string;
+  collectionName: string;
+  CreatedAt: number;
 }

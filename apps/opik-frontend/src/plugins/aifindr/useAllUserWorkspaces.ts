@@ -1,65 +1,32 @@
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 import api, { QueryConfig } from "./api";
-import { Workspace } from "./types";
+import { Project, Workspace } from "./types";
 
 const getAllUserWorkspaces = async (
   { signal }: QueryFunctionContext,
 ) => {
-  // TODO: Remove this when we load workspaces from backend
-  const testWorkspaces: Workspace[] = [
-    {
-      workspaceId: "default-test",
-      workspaceName: "default",
-      workspaceOwner: "Álvaro",
-      workspaceCreator: "default-test",
-      organizationId: "default-test",
-      default: true,
-      createdAt: 1,
-      collaborationFeaturesDisabled: false,
-    },{
-      workspaceId: "workspace-test-id-1",
-      workspaceName: "workspace-test-name-1",
-      workspaceOwner: "workspace-test-owner-1",
-      workspaceCreator: "workspace-test-creator-1",
-      organizationId: "organization-test-id-1",
+  const { data: projects } = await api.get<Project[]>(`/admin/api/projects`)
+  const workspaces: Workspace[] = projects.map((project) => {
+    return {
+      workspaceId: project.ID.toString(),
+      workspaceName: project.slug,
+      workspaceDisplayName: project.name,
+      workspaceOwner: "",
+      workspaceCreator: "",
+      organizationId: "",
       default: false,
-      createdAt: 2,
-      collaborationFeaturesDisabled: false,
-    },{
-      workspaceId: "workspace-test-id-2",
-      workspaceName: "workspace-test-name-2",
-      workspaceOwner: "workspace-test-owner-2",
-      workspaceCreator: "workspace-test-creator-2",
-      organizationId: "organization-test-id-2",
-      default: false,
-      createdAt: 3,
+      createdAt: project.CreatedAt,
       collaborationFeaturesDisabled: false,
     }
-  ]
+  })
 
-  return testWorkspaces;
-  // const allWorkspacesPromise = api
-  //   .get<Workspace[]>(`/workspaces`, {
-  //     signal,
-  //     params: { withoutExtendedData: true },
-  //   })
-  //   .then(({ data }) => data);
+  // TODO: Error if no workspaces are found
+  // TODO: Manage if the above query fails
 
-  // const workspacesPromises = organizationIds?.map((organizationId) => {
-  //   return api
-  //     .get<Workspace[]>(`/workspaces`, {
-  //       signal,
-  //       params: { organizationId, withoutExtendedData: true },
-  //     })
-  //     .then(({ data }) => data);
-  // });
+  // Set the first workspace as default
+  workspaces[0].default = true;
 
-  // const workspaces = await Promise.all([
-  //   allWorkspacesPromise,
-  //   ...(workspacesPromises || []),
-  // ]);
-
-  // return uniqBy(workspaces.flat(), "workspaceId");
+  return workspaces;
 };
 
 export default function useAllUserWorkspaces(

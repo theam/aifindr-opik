@@ -152,7 +152,7 @@ const UserMenu = () => {
                         >
                           <TooltipWrapper content={workspace.workspaceName}>
                             <span className="truncate">
-                              {workspace.workspaceName}
+                              {workspace.workspaceDisplayName}
                             </span>
                           </TooltipWrapper>
                         </DropdownMenuCheckboxItem>
@@ -167,20 +167,11 @@ const UserMenu = () => {
                       workspaceName,
                     )}
                   >
-                    <Button variant="link">View all workspaces</Button>
+                    <Button variant="link">View all workspaces (TODO)</Button>
                   </a>
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <a href={buildUrl("account-settings", workspaceName)}>
-              <DropdownMenuItem className="cursor-pointer">
-                <Settings className="mr-2 size-4" />
-                <span>Account settings</span>
-              </DropdownMenuItem>
-            </a>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
