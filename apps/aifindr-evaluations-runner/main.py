@@ -15,9 +15,10 @@ TASK_QUEUE: asyncio.Queue[EvaluationParams] = asyncio.Queue(maxsize=10)  # Maxim
 MAX_CONCURRENT_TASKS = 5  # Number of concurrent evaluations
 
 class RunEvaluationsRequest(BaseModel):
+    workspace_name: str
     dataset_name: str
     experiment_name: str
-    project_name: str
+    project_name: str | None = None
     base_prompt_name: str
     workflow: str
 
@@ -53,6 +54,7 @@ async def run_evaluation(request: RunEvaluationsRequest):
         # Create EvaluationParams with all fields from request plus task_id
         evaluation_params = EvaluationParams(
             task_id=task_id,
+            workspace_name=request.workspace_name,
             dataset_name=request.dataset_name,
             experiment_name=request.experiment_name,
             project_name=request.project_name,

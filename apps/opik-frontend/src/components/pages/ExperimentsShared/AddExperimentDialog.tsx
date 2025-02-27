@@ -6,13 +6,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import CodeHighlighter from "@/components/shared/CodeHighlighter/CodeHighlighter";
 import LoadableSelectBox from "@/components/shared/LoadableSelectBox/LoadableSelectBox";
 import useDatasetsList from "@/api/datasets/useDatasetsList";
+import usePromptsList from "@/api/prompts/usePromptsList";
 import SideDialog from "@/components/shared/SideDialog/SideDialog";
 import { SheetTitle } from "@/components/ui/sheet";
 import ApiKeyCard from "@/components/pages-shared/onboarding/ApiKeyCard/ApiKeyCard";
 import GoogleColabCard from "@/components/pages-shared/onboarding/GoogleColabCard/GoogleColabCard";
-import ConfigureEnvCode from "@/components/pages-shared/onboarding/ConfigureEnvCode/ConfigureEnvCode";
 import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import useExperimentRunMutation from "@/api/datasets/useExperimentRun";
 
 export enum EVALUATOR_MODEL {
@@ -26,6 +27,7 @@ export enum EVALUATOR_MODEL {
   answer_relevance = "answer_relevance",
   context_recall = "context_recall",
   context_precision = "context_precision",
+  follows_criteria = "follows_criteria",
 }
 
 export interface ModelData {
@@ -77,35 +79,41 @@ const EVALUATOR_MODEL_MAP: Record<EVALUATOR_MODEL, ModelData> = {
     class: "ContextPrecision",
     scoreParameters: ["input", "output", "context"],
   },
+  [EVALUATOR_MODEL.follows_criteria]: {
+    class: "FollowsCriteria",
+    scoreParameters: ["output", "criteria"],
+  },
 };
 
-const HEURISTICS_MODELS_OPTIONS: DropdownOption<EVALUATOR_MODEL>[] = [
-  {
-    value: EVALUATOR_MODEL.equals,
-    label: "Equals",
-    description: "Checks for exact text match.",
-  },
-  {
-    value: EVALUATOR_MODEL.regex_match,
-    label: "Regex match",
-    description: "Verifies pattern conformity using regex.",
-  },
-  {
-    value: EVALUATOR_MODEL.contains,
-    label: "Contains",
-    description: "Identifies presence of a substring.",
-  },
-  {
-    value: EVALUATOR_MODEL.isJSON,
-    label: "isJSON",
-    description: "Validates JSON format compliance.",
-  },
-  {
-    value: EVALUATOR_MODEL.levenshtein,
-    label: "Levenshtein",
-    description: "Calculates text similarity via edit distance.",
-  },
-];
+// const HEURISTICS_MODELS_OPTIONS: DropdownOption<EVALUATOR_MODEL>[] = [
+//   {
+//     value: EVALUATOR_MODEL.equals,
+//     label: "Equals",
+//     description: "Checks for exact text match.",
+//   },
+//   {
+//     value: EVALUATOR_MODEL.regex_match,
+//     label: "Regex match",
+//     description: "Verifies pattern conformity using regex.",
+//   },
+//   {
+//     value: EVALUATOR_MODEL.contains,
+//     label: "Contains",
+//     description: "Identifies presence of a substring.",
+//   },
+//   {
+//     value: EVALUATOR_MODEL.isJSON,
+//     label: "isJSON",
+//     description: "Validates JSON format compliance.",
+//   },
+//   {
+//     value: EVALUATOR_MODEL.levenshtein,
+//     label: "Levenshtein",
+//     description: "Calculates text similarity via edit distance.",
+//   },
+// ];
+const HEURISTICS_MODELS_OPTIONS: DropdownOption<EVALUATOR_MODEL>[] = []
+
 
 const LLM_JUDGES_MODELS_OPTIONS: DropdownOption<EVALUATOR_MODEL>[] = [
   {
@@ -133,9 +141,15 @@ const LLM_JUDGES_MODELS_OPTIONS: DropdownOption<EVALUATOR_MODEL>[] = [
     label: "Context precision",
     description: "Checks accuracy of provided context details.",
   },
+  {
+    value: EVALUATOR_MODEL.follows_criteria,
+    label: "Follows criteria",
+    description: "Checks if the response follows the criteria.",
+  },
 ];
 
 const DEFAULT_LOADED_DATASET_ITEMS = 25;
+const DEFAULT_LOADED_PROMPT_ITEMS = 25;
 
 type AddExperimentDialogProps = {
   open: boolean;
@@ -148,8 +162,12 @@ const AddExperimentDialog: React.FunctionComponent<
   const workspaceName = useAppStore((state) => state.activeWorkspaceName);
   const experimentRunMutation = useExperimentRunMutation();
 
-  const [isLoadedMore, setIsLoadedMore] = useState(false);
+  const [isDatasetsLoadedMore, setIsDatasetsLoadedMore] = useState(false);
+  const [isPromptsLoadedMore, setIsPromptsLoadedMore] = useState(false);
+  const [experimentName, setExperimentName] = useState("");
   const [datasetName, setDatasetName] = useState("");
+  const [promptName, setPromptName] = useState("");
+  const [workflowPath, setWorkflowPath] = useState("");
   const [models, setModels] = useState<EVALUATOR_MODEL[]>([
     LLM_JUDGES_MODELS_OPTIONS[0].value,
   ]); // Set the first LLM judge model as checked
@@ -208,6 +226,10 @@ client = Opik()
 dataset = client.get_dataset(name="${
       datasetName || "dataset name placeholder"
     }")
+prompt = client.get_prompt(name="${
+      promptName || "prompt name placeholder"
+    }")
+workflow = "${workflowPath}"
 
 def evaluation_task(dataset_item):
     # your LLM application is called here
@@ -215,16 +237,29 @@ def evaluation_task(dataset_item):
     result = ${evaluation_task_output}
 ${metricsString}
 eval_results = evaluate(
-  experiment_name="my_evaluation",
+  experiment_name="${experimentName}",
   dataset=dataset,
-  task=evaluation_task${metricsParam}
+  task=evaluation_task,
+  base_prompt=prompt,
+  workflow="${workflowPath}"${metricsParam}
 )`;
 
   const { data, isLoading } = useDatasetsList(
     {
       workspaceName,
       page: 1,
-      size: isLoadedMore ? 10000 : DEFAULT_LOADED_DATASET_ITEMS,
+      size: isDatasetsLoadedMore ? 10000 : DEFAULT_LOADED_DATASET_ITEMS,
+    },
+    {
+      placeholderData: keepPreviousData,
+    },
+  );
+
+  const { data: promptsData, isLoading: isPromptsLoading } = usePromptsList(
+    {
+      workspaceName,
+      page: 1,
+      size: isPromptsLoadedMore ? 10000 : DEFAULT_LOADED_PROMPT_ITEMS,
     },
     {
       placeholderData: keepPreviousData,
@@ -232,8 +267,10 @@ eval_results = evaluate(
   );
 
   const total = data?.total ?? 0;
+  const promptsTotal = promptsData?.total ?? 0;
 
-  const loadMoreHandler = useCallback(() => setIsLoadedMore(true), []);
+  const loadMoreDatasetsHandler = useCallback(() => setIsDatasetsLoadedMore(true), []);
+  const loadMorePromptsHandler = useCallback(() => setIsPromptsLoadedMore(true), []);
 
   const options: DropdownOption<string>[] = useMemo(() => {
     return (data?.content || []).map((dataset) => ({
@@ -242,11 +279,21 @@ eval_results = evaluate(
     }));
   }, [data?.content]);
 
+  const promptOptions: DropdownOption<string>[] = useMemo(() => {
+    return (promptsData?.content || []).map((prompt) => ({
+      value: prompt.name,
+      label: prompt.name,
+    }));
+  }, [promptsData?.content]);
+
   const openChangeHandler = useCallback(
     (open: boolean) => {
       setOpen(open);
       if (!open) {
+        setExperimentName("");
         setDatasetName("");
+        setPromptName("");
+        setWorkflowPath("");
       }
     },
     [setOpen],
@@ -306,11 +353,12 @@ eval_results = evaluate(
 
     experimentRunMutation.mutate(
       {
+        workspaceName,
         datasetName,
-        experimentName: "my_evaluation",
+        experimentName: experimentName,
         projectName: workspaceName,
-        basePromptName: "default",
-        workflow: "default"
+        basePromptName: promptName,
+        workflow: workflowPath
       },
       {
         onSuccess: () => {
@@ -318,7 +366,7 @@ eval_results = evaluate(
         }
       }
     );
-  }, [datasetName, workspaceName, experimentRunMutation, setOpen]);
+  }, [datasetName, promptName, workflowPath, experimentName, workspaceName, experimentRunMutation, setOpen]);
 
   return (
     <SideDialog open={open} setOpen={openChangeHandler}>
@@ -338,7 +386,16 @@ eval_results = evaluate(
           </div>
           <div className="flex w-full max-w-[700px] flex-col gap-2 rounded-md border border-slate-200 p-6">
             <div className="comet-body-s text-foreground-secondary">
-              1. Select dataset
+              1. Enter the experiment name
+            </div>
+            <Input
+              value={experimentName}
+              onChange={(e) => setExperimentName(e.target.value)}
+              placeholder="Enter experiment name"
+              className="w-full"
+            />
+            <div className="comet-body-s mt-4 text-foreground-secondary">
+              2. Select dataset
             </div>
             <LoadableSelectBox
               options={options}
@@ -346,23 +403,40 @@ eval_results = evaluate(
               placeholder="Select a dataset"
               onChange={setDatasetName}
               onLoadMore={
-                total > DEFAULT_LOADED_DATASET_ITEMS && !isLoadedMore
-                  ? loadMoreHandler
+                total > DEFAULT_LOADED_DATASET_ITEMS && !isDatasetsLoadedMore
+                  ? loadMoreDatasetsHandler
                   : undefined
               }
               isLoading={isLoading}
               optionsCount={DEFAULT_LOADED_DATASET_ITEMS}
             />
             <div className="comet-body-s mt-4 text-foreground-secondary">
-              2. Install the SDK
+              3. Select the prompt
             </div>
-            <CodeHighlighter data={section1} />
+            <LoadableSelectBox
+              options={promptOptions}
+              value={promptName}
+              placeholder="Select a prompt"
+              onChange={setPromptName}
+              onLoadMore={
+                promptsTotal > DEFAULT_LOADED_PROMPT_ITEMS && !isPromptsLoadedMore
+                  ? loadMorePromptsHandler
+                  : undefined
+              }
+              isLoading={isPromptsLoading}
+              optionsCount={DEFAULT_LOADED_PROMPT_ITEMS}
+            />
             <div className="comet-body-s mt-4 text-foreground-secondary">
-              3. Configure your API key
+              4. Enter workflow path
             </div>
-            <ConfigureEnvCode />
+            <Input
+              value={workflowPath}
+              onChange={(e) => setWorkflowPath(e.target.value)}
+              placeholder="Enter workflow path"
+              className="w-full"
+            />
             <div className="comet-body-s mt-4 text-foreground-secondary">
-              4. Create an Experiment
+              5. Create an Experiment
             </div>
             <CodeHighlighter data={section3} />
           </div>
@@ -371,7 +445,7 @@ eval_results = evaluate(
             <Button 
               variant="outline" 
               onClick={handleRunExperiment}
-              disabled={!datasetName || experimentRunMutation.isPending}
+              disabled={!datasetName || !promptName || !experimentName || !workflowPath || experimentRunMutation.isPending}
             >
               <Activity className="mr-2 size-4" />
               {experimentRunMutation.isPending ? "Running..." : "Run experiment"}

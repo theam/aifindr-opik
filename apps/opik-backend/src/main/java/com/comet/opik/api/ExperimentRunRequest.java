@@ -11,9 +11,10 @@ import lombok.Builder;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record ExperimentRunRequest(
+    @NotBlank String workspaceName,
     @NotBlank String datasetName,
     @NotBlank String experimentName,
-    @NotBlank String projectName,
+    String projectName,
     @NotBlank String basePromptName,
     @NotBlank String workflow
 ) {} 

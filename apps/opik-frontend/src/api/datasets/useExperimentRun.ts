@@ -5,6 +5,7 @@ import api, { EXPERIMENTS_REST_ENDPOINT } from "@/api/api";
 import { useToast } from "@/components/ui/use-toast";
 
 type ExperimentRunParams = {
+  workspaceName: string;
   datasetName: string;
   experimentName: string;
   projectName: string;
@@ -18,7 +19,17 @@ const useExperimentRunMutation = () => {
 
   return useMutation({
     mutationFn: async (params: ExperimentRunParams) => {
-      const { data } = await api.post(EXPERIMENTS_REST_ENDPOINT + 'run', params);
+      // Convert camelCase keys to snake_case for the backend
+      const snakeCaseParams = {
+        workspace_name: params.workspaceName,
+        dataset_name: params.datasetName,
+        experiment_name: params.experimentName,
+        project_name: params.projectName,
+        base_prompt_name: params.basePromptName,
+        workflow: params.workflow
+      };
+      
+      const { data } = await api.post(EXPERIMENTS_REST_ENDPOINT + 'run', snakeCaseParams);
       return data;
     },
     onError: (error: AxiosError) => {
