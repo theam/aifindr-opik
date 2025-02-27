@@ -7,15 +7,13 @@ import {
 import { MoveLeft } from "lucide-react";
 import React from "react";
 
-import PartialPageLayout from "@/components/layout/PartialPageLayout/PartialPageLayout";
 import Loader from "@/components/shared/Loader/Loader";
-import { Button } from "@/components/ui/button";
-import { DEFAULT_WORKSPACE_NAME } from "@/constants/user";
 import useAppStore from "@/store/AppStore";
 import Logo from "./Logo";
 import useAllUserWorkspaces from "./useAllUserWorkspaces";
 import useUser from "./useUser";
 import { buildUrl } from "./utils";
+import { useToast } from "@/components/ui/use-toast";
 
 type WorkspacePreloaderProps = {
   children: React.ReactNode;
@@ -24,10 +22,15 @@ type WorkspacePreloaderProps = {
 const WorkspacePreloader: React.FunctionComponent<WorkspacePreloaderProps> = ({
   children,
 }) => {
+  const { toast } = useToast();
   const { data: user, isLoading, loginWithRedirect } = useUser();
-  const { data: workspaces } = useAllUserWorkspaces({
+  const res = useAllUserWorkspaces({
     enabled: !!user?.loggedIn,
   });
+  console.log("Res: ", res)
+
+  const { data: workspaces, isLoading: isWorkspacesLoading, error: workspacesError } = res
+  
   const matchRoute = useMatchRoute();
   const workspaceNameFromURL = useParams({
     strict: false,
@@ -50,8 +53,17 @@ const WorkspacePreloader: React.FunctionComponent<WorkspacePreloaderProps> = ({
     return null;
   }
 
-  if (!workspaces) {
+  if (isWorkspacesLoading) {
     return <Loader />;
+  }
+
+  if (!workspaces || workspacesError) {    
+    toast({
+      title: "Error loading workspaces",
+      description: workspacesError?.message || "Failed to load workspaces",
+      variant: "destructive",
+    });
+    return null
   }
 
   const workspace = workspaceNameFromURL
