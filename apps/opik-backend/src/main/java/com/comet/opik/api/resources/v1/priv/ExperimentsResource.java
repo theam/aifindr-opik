@@ -53,6 +53,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -319,11 +320,12 @@ public class ExperimentsResource {
     @RateLimited
     public Response runExperiment(
             @RequestBody(content = @Content(schema = @Schema(implementation = ExperimentRunRequest.class))) 
-            @NotNull @Valid ExperimentRunRequest request) {
+            @NotNull @Valid ExperimentRunRequest request,
+            @HeaderParam("Authorization") String authorization) {
 
         log.info("Running experiment {}", request);
         
-        ExperimentRunResponse response = experimentService.runExperiment(request)
+        ExperimentRunResponse response = experimentService.runExperiment(request, authorization)
                 .contextWrite(ctx -> setRequestContext(ctx, requestContext))
                 .block();
         

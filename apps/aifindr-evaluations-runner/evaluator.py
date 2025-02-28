@@ -1,5 +1,6 @@
 import logging
-from opik import Opik
+from opik.api_objects.opik_client import get_client_cached
+from opik.config import update_session_config
 from opik.evaluation import evaluate
 from opik.evaluation.metrics import (Hallucination, ContextRecall, ContextPrecision)
 from workflows import run_workflow
@@ -23,6 +24,7 @@ class EvaluationParams(BaseModel):
     project_name: str
     base_prompt_name: str
     workflow: str
+    api_key: str
 
 def evaluation_task(dataset_item, workflow: str):
     # TODO: validate properly dataset_item so that no field is empty
@@ -34,7 +36,6 @@ def evaluation_task(dataset_item, workflow: str):
             "context": [],
         }
     
-
     response_content = run_workflow(workflow, dataset_item['query'])
 
     # parsed_response = json.loads(response_content.response)
@@ -54,9 +55,10 @@ def build_evaluation_task(params: EvaluationParams):
 
 
 def execute_evaluation(params: EvaluationParams):
-    client = Opik()
+    client = build_opik_client(params.workspace_name, params.api_key)
     dataset = client.get_dataset(name=params.dataset_name)
     base_prompt = client.get_prompt(name=params.base_prompt_name)
+
     if not base_prompt:
         raise ValueError(f"No base prompt found with name '{params.base_prompt_name}'")
     
@@ -76,3 +78,16 @@ def execute_evaluation(params: EvaluationParams):
         prompt=base_prompt,
         task_threads=20
     )
+
+def build_opik_client(workspace_name: str, api_key: str):
+    # Normally you would create the Opik cliekt with Opik(workspace=workspace_name, api_key=api_key)
+    # However, the internal evaluate method gets the client from get_client_cached(), what creates 
+    # a client with the default workspace and without the api key. What is more, it is reused in every request
+
+    # So we use the functions update_session_config to set the parameters, as the Opik constructor can take them from there
+    # Then, we clear the cache to remove any previous client with possible different workspace or api key.
+    # Finally, we return the client created with the new parameters. Now "evaluate" will use this client we created.
+    update_session_config('workspace', workspace_name)
+    update_session_config('api_key', api_key)
+    get_client_cached.cache_clear()
+    return get_client_cached()

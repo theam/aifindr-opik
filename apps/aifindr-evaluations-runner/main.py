@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import logging
 import asyncio
@@ -47,24 +47,25 @@ async def startup_event():
         asyncio.create_task(process_queue())
 
 @app.post("/evaluations/run", response_model=RunEvaluationsResponse)
-async def run_evaluation(request: RunEvaluationsRequest):
+async def run_evaluation(input: RunEvaluationsRequest, req: Request):
     try:
         # Generate task ID
         task_id = str(uuid.uuid4())
         # Create EvaluationParams with all fields from request plus task_id
         evaluation_params = EvaluationParams(
             task_id=task_id,
-            workspace_name=request.workspace_name,
-            dataset_name=request.dataset_name,
-            experiment_name=request.experiment_name,
-            project_name=request.project_name,
-            base_prompt_name=request.base_prompt_name,
-            workflow=request.workflow
+            workspace_name=input.workspace_name,
+            dataset_name=input.dataset_name,
+            experiment_name=input.experiment_name,
+            project_name=input.project_name,
+            base_prompt_name=input.base_prompt_name,
+            workflow=input.workflow,
+            api_key=req.headers.get("Authorization")
         )
 
         try:
             TASK_QUEUE.put_nowait(evaluation_params)
-            logger.info(f"Evaluation task added to queue: {evaluation_params}")
+            logger.info("Evaluation task added to queue")
         except asyncio.QueueFull:
             logger.error(f"Queue is full. Evaluation task not added to the queue: {evaluation_params}")
             raise HTTPException(status_code=503, detail="Server is currently at maximum capacity. Please try again later.")

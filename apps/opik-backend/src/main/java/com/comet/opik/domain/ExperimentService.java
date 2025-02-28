@@ -454,13 +454,14 @@ public class ExperimentService {
     }
 
     @WithSpan
-    public Mono<ExperimentRunResponse> runExperiment(@NonNull ExperimentRunRequest request) {
+    public Mono<ExperimentRunResponse> runExperiment(@NonNull ExperimentRunRequest request, String authorization) {
         log.info("Starting experiment run for dataset '{}', experiment '{}'", 
                 request.datasetName(), request.experimentName());
                 
         return Mono.fromCallable(() ->
             client.target(configuration.getExperimentRunner().getUrl())
                 .request(MediaType.APPLICATION_JSON)
+                .header("Authorization", authorization)
                 .post(Entity.json(request), ExperimentRunResponse.class)
         )
         .doOnSuccess(response -> 
