@@ -14,6 +14,11 @@ services:
       - "9000:9000" # Exposing ClickHouse Native Protocol port to host
 
   backend:
+    environment:
+      AUTH_ENABLED: true
+      AUTH_IS_AUTH0: true
+      AUTH_DOMAIN: <auth-domain>
+      EXPERIMENT_RUNNER_URL: http://aifindr-evaluations-runner:8001/evaluations/run
     ports:
       - "8080:8080" # Exposing backend HTTP port to host
       - "3003:3003" # Exposing backend OpenAPI specification port to host
@@ -23,6 +28,12 @@ services:
       - "8000:8000" # Exposing Python backend HTTP port to host
 
   frontend:
+    build:
+      args:
+        AUTH_DOMAIN: <auth-domain>
+        AUTH_CLIENT_ID: <auth-client-id>
+        AUTH_AUDIENCE: <auth-audience>
+        AIFINDR_API_URL: http://host.docker.internal:3000
     ports:
       - "5173:5173" # Exposing frontend server port to host
 

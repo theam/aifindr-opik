@@ -1,3 +1,5 @@
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import BaseModel
 import logging
 import asyncio
 import uuid
@@ -5,9 +7,6 @@ from requests import request, Response
 
 from urllib.parse import urljoin, urlparse
 from typing import Dict
-
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 
 from settings import settings
 from evaluator import EvaluationParams, ExperimentStatus, execute_evaluation
@@ -25,9 +24,10 @@ MAX_CONCURRENT_TASKS = 5  # Number of concurrent evaluations
 
 
 class RunEvaluationsRequest(BaseModel):
+    workspace_name: str
     dataset_name: str
     experiment_name: str
-    project_name: str
+    project_name: str | None = None
     base_prompt_name: str
     workflow: str
 
@@ -113,23 +113,25 @@ async def health(timeout: int = 5):
 
 
 @app.post("/evaluations/run", response_model=RunEvaluationsResponse)
-async def run_evaluation(request: RunEvaluationsRequest):
+async def run_evaluation(input: RunEvaluationsRequest, req: Request):
     try:
         # Generate task ID
         task_id = str(uuid.uuid4())
         # Create EvaluationParams with all fields from request plus task_id
         evaluation_params = EvaluationParams(
             task_id=task_id,
-            dataset_name=request.dataset_name,
-            experiment_name=request.experiment_name,
-            project_name=request.project_name,
-            base_prompt_name=request.base_prompt_name,
-            workflow=request.workflow,
+            workspace_name=input.workspace_name,
+            dataset_name=input.dataset_name,
+            experiment_name=input.experiment_name,
+            project_name=input.project_name,
+            base_prompt_name=input.base_prompt_name,
+            workflow=input.workflow,
+            api_key=req.headers.get("Authorization")
         )
 
         try:
             TASK_QUEUE.put_nowait(evaluation_params)
-            logger.info(f"Evaluation task added to queue: {evaluation_params}")
+            logger.info("Evaluation task added to queue")
         except asyncio.QueueFull:
             logger.error(
                 f"Queue is full. Evaluation task not added to the queue: {evaluation_params}"

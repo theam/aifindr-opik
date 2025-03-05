@@ -1,6 +1,7 @@
 package com.comet.opik.infrastructure;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.dropwizard.db.DataSourceFactory;
 import io.dropwizard.jobs.JobConfiguration;
 import jakarta.validation.Valid;
@@ -60,4 +61,6 @@ public class OpikConfiguration extends JobConfiguration {
     @Valid @NotNull @JsonProperty
     private ClickHouseLogAppenderConfig clickHouseLogAppender = new ClickHouseLogAppenderConfig();
 
+    @Valid @NotNull @JsonProperty
+    private ExperimentRunnerConfig experimentRunner = new ExperimentRunnerConfig();
 }

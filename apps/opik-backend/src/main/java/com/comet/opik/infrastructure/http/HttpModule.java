@@ -2,6 +2,7 @@ package com.comet.opik.infrastructure.http;
 
 import com.comet.opik.infrastructure.OpikConfiguration;
 import com.google.inject.Provides;
+
 import jakarta.inject.Singleton;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;

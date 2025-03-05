@@ -35,8 +35,10 @@ class FollowsCriteria(base_metric.BaseMetric):
         self.name = name
         self.llm_client = models.LiteLLMChatModel(model_name=model_name)
         self.prompt_template = f"""
+# Instructions
 {prompt_template}
------
+
+# Answer format
 Answer with a json with the following format:
 
 {{{{
@@ -58,8 +60,6 @@ Follow this instructions to fill the score:
             output=output,
             criteria=criteria
         )
-
-        print("Prompt total: ", prompt)
         # Generate and parse the response from the LLM
         response = self.llm_client.generate_string(input=prompt, response_format=FollowsCriteriaResult)
 

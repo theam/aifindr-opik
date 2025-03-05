@@ -1,8 +1,23 @@
 package com.comet.opik.infrastructure.auth;
 
-import com.comet.opik.api.AuthenticationErrorResponse;
+import java.net.URI;
+import java.util.Base64;
+import java.util.List;
+import java.util.Optional;
+
+import org.apache.commons.lang3.StringUtils;
+
+import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_API_KEY;
+import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_WORKSPACE;
+import static com.comet.opik.api.AuthenticationErrorResponse.NOT_ALLOWED_TO_ACCESS_WORKSPACE;
 import com.comet.opik.domain.ProjectService;
+import com.comet.opik.infrastructure.AuthenticationConfig.UrlConfig;
+import com.comet.opik.infrastructure.auth.CacheService.AuthCredentials;
 import com.comet.opik.infrastructure.lock.LockService;
+import com.comet.opik.infrastructure.lock.LockService.Lock;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.inject.Provider;
 import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.InternalServerErrorException;
@@ -15,23 +30,17 @@ import jakarta.ws.rs.core.Response;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
-import java.net.URI;
-import java.util.Optional;
-
-import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_API_KEY;
-import static com.comet.opik.api.AuthenticationErrorResponse.MISSING_WORKSPACE;
-import static com.comet.opik.api.AuthenticationErrorResponse.NOT_ALLOWED_TO_ACCESS_WORKSPACE;
-import static com.comet.opik.infrastructure.AuthenticationConfig.UrlConfig;
-import static com.comet.opik.infrastructure.auth.AuthCredentialsCacheService.AuthCredentials;
-import static com.comet.opik.infrastructure.lock.LockService.Lock;
 
 @RequiredArgsConstructor
 @Slf4j
 class RemoteAuthService implements AuthService {
+    // AIFindr: constants
+    // TODO: move this to a better place
+    private static final String CAPABILITIES_CLAIM = "pgpt:capabilities";
+    private static final String EVALUATIONS_CAPABILITY = "evaluations-view";
+
     private static final String USER_NOT_FOUND = "User not found";
     private final @NonNull Client client;
     private final @NonNull UrlConfig apiKeyAuthUrl;
@@ -44,6 +53,14 @@ class RemoteAuthService implements AuthService {
     }
 
     record AuthResponse(String user, String workspaceId) {
+    }
+
+    // AIFindr: add Auth0 support
+    record Auth0Verification(AuthRequest authRequest, String apiKey) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Auth0SpecificResponse(String sub, String name) {
     }
 
     record ValidatedAuthCredentials(boolean shouldCache, String userName, String workspaceId) {
@@ -84,7 +101,7 @@ class RemoteAuthService implements AuthService {
                 .cookie(sessionToken)
                 .post(Entity.json(new AuthRequest(workspaceName, path)))) {
 
-            AuthResponse credentials = verifyResponse(response);
+            AuthResponse credentials = verifyResponse(response, null);
 
             setCredentialIntoContext(credentials.user(), credentials.workspaceId());
             requestContext.get().setApiKey(sessionToken.getValue());
@@ -124,15 +141,16 @@ class RemoteAuthService implements AuthService {
 
         if (credentials.isEmpty()) {
             log.debug("User and workspace id not found in cache for API key");
-
+            AuthRequest authRequest = new AuthRequest(workspaceName, path);
             try (var response = client.target(URI.create(apiKeyAuthUrl.url()))
                     .request()
                     .accept(MediaType.APPLICATION_JSON)
                     .header(HttpHeaders.AUTHORIZATION,
                             apiKey)
-                    .post(Entity.json(new AuthRequest(workspaceName, path)))) {
+                    .post(Entity.json(authRequest))) {
 
-                AuthResponse authResponse = verifyResponse(response);
+                Auth0Verification auth0Verification = apiKeyAuthUrl.isAuth0() ? new Auth0Verification(authRequest, apiKey) : null;
+                AuthResponse authResponse = verifyResponse(response, auth0Verification);
                 return new ValidatedAuthCredentials(true, authResponse.user(), authResponse.workspaceId());
             }
         } else {
@@ -140,9 +158,28 @@ class RemoteAuthService implements AuthService {
         }
     }
 
-    private AuthResponse verifyResponse(Response response) {
+    private AuthResponse verifyResponse(Response response, Auth0Verification auth0Verification) {
+        AuthResponse authResponse;
         if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
-            var authResponse = response.readEntity(AuthResponse.class);
+            // AIFindr: add Auth0 response support
+            if (auth0Verification != null) {
+                var responseData = response.readEntity(Auth0SpecificResponse.class);
+                
+                // Decode the JWT token to extract capabilities
+                List<String> capabilities = extractCapabilitiesFromToken(auth0Verification.apiKey());
+                log.debug("Extracted capabilities from token: {}", capabilities);
+
+                if (!capabilities.contains(EVALUATIONS_CAPABILITY)) {
+                    log.warn("User does not have Evaluations capability");
+                    throw new ClientErrorException("User is not authorized to access evaluations", Response.Status.UNAUTHORIZED); 
+                }
+                
+                // TODO: no workspace id yet
+                authResponse = new AuthResponse(responseData.name(), auth0Verification.authRequest().workspaceName());
+            } else {
+                var responseData = response.readEntity(AuthResponse.class);
+                authResponse = new AuthResponse(responseData.user(), responseData.workspaceId());
+            }
 
             if (StringUtils.isEmpty(authResponse.user())) {
                 log.warn("User not found");
@@ -150,19 +187,49 @@ class RemoteAuthService implements AuthService {
             }
 
             return authResponse;
-        } else if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-            var errorResponse = response.readEntity(AuthenticationErrorResponse.class);
-            throw new ClientErrorException(errorResponse.msg(), Response.Status.UNAUTHORIZED);
+        } else if (response.getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()
+                || response.getStatus() == Response.Status.BAD_REQUEST.getStatusCode()) {
+            throw new ClientErrorException(response.getStatusInfo().getReasonPhrase(), response.getStatus());
         } else if (response.getStatus() == Response.Status.FORBIDDEN.getStatusCode()) {
             // EM never returns FORBIDDEN as of now
             throw new ClientErrorException(NOT_ALLOWED_TO_ACCESS_WORKSPACE, Response.Status.FORBIDDEN);
-        } else if (response.getStatus() == Response.Status.BAD_REQUEST.getStatusCode()) {
-            var errorResponse = response.readEntity(AuthenticationErrorResponse.class);
-            throw new ClientErrorException(errorResponse.msg(), Response.Status.BAD_REQUEST);
         }
 
         log.error("Unexpected error while authenticating user, received status code: {}", response.getStatus());
         throw new InternalServerErrorException();
+    }
+
+    // AIFindr: Extract capabilities from token
+    private List<String> extractCapabilitiesFromToken(String token) {
+        try {
+            // Remove "Bearer " prefix if it exists
+            String actualToken = token.startsWith("Bearer ") ? token.substring(7) : token;
+            
+            // Split token into its parts (header, payload, signature)
+            String[] parts = actualToken.split("\\.");
+            if (parts.length < 2) {
+                log.warn("Invalid JWT token format");
+                return List.of();
+            }
+
+            // Decode the payload part
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            ObjectMapper mapper = new ObjectMapper();
+            var claims = mapper.readTree(payload);
+            
+            // Extract the "pgpt:capabilities" claim
+            if (claims.has(CAPABILITIES_CLAIM)) {
+                return mapper.convertValue(
+                    claims.get(CAPABILITIES_CLAIM),
+                    mapper.getTypeFactory().constructCollectionType(List.class, String.class)
+                );
+            }
+            
+            return List.of();
+        } catch (Exception e) {
+            log.error("Error decoding JWT token", e);
+            return List.of();
+        }
     }
 
     private void setCredentialIntoContext(String userName, String workspaceId) {

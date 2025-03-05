@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 public class AuthenticationConfig {
 
-    public record UrlConfig(@Valid @JsonProperty @NotNull String url) {
+    public record UrlConfig(@Valid @JsonProperty @NotNull String url, @Valid @JsonProperty boolean isAuth0) {
     }
 
     @Valid @JsonProperty

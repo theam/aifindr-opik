@@ -1,5 +1,13 @@
 package com.comet.opik.api.resources.v1.priv;
 
+import java.util.Collections;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.glassfish.jersey.server.ChunkedOutput;
+
 import com.codahale.metrics.annotation.Timed;
 import com.comet.opik.api.Experiment;
 import com.comet.opik.api.ExperimentItem;
@@ -7,6 +15,8 @@ import com.comet.opik.api.ExperimentItemSearchCriteria;
 import com.comet.opik.api.ExperimentItemStreamRequest;
 import com.comet.opik.api.ExperimentItemsBatch;
 import com.comet.opik.api.ExperimentItemsDelete;
+import com.comet.opik.api.ExperimentRunRequest;
+import com.comet.opik.api.ExperimentRunResponse;
 import com.comet.opik.api.ExperimentSearchCriteria;
 import com.comet.opik.api.ExperimentsDelete;
 import com.comet.opik.api.FeedbackDefinition;
@@ -15,14 +25,17 @@ import com.comet.opik.api.Identifier;
 import com.comet.opik.api.resources.v1.priv.validate.IdParamsValidator;
 import com.comet.opik.domain.ExperimentItemService;
 import com.comet.opik.domain.ExperimentService;
+import com.comet.opik.domain.FeedbackScoreDAO.EntityType;
 import com.comet.opik.domain.FeedbackScoreService;
 import com.comet.opik.domain.IdGenerator;
 import com.comet.opik.domain.Streamer;
 import com.comet.opik.infrastructure.auth.RequestContext;
 import com.comet.opik.infrastructure.ratelimit.RateLimited;
 import com.comet.opik.utils.AsyncUtils;
+import static com.comet.opik.utils.AsyncUtils.setRequestContext;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.JsonNode;
+
 import io.dropwizard.jersey.errors.ErrorMessage;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.headers.Header;
@@ -40,6 +53,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -52,16 +66,6 @@ import jakarta.ws.rs.core.UriInfo;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.glassfish.jersey.server.ChunkedOutput;
-
-import java.util.Collections;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import static com.comet.opik.domain.FeedbackScoreDAO.EntityType;
-import static com.comet.opik.utils.AsyncUtils.setRequestContext;
 
 @Path("/v1/private/experiments")
 @Produces(MediaType.APPLICATION_JSON)
@@ -303,5 +307,30 @@ public class ExperimentsResource {
                 feedbackScoreNames.scores().size(), experimentIds, workspaceId);
 
         return Response.ok(feedbackScoreNames).build();
+    }
+
+    @POST
+    @Path("/run")
+    @Operation(operationId = "runExperiment", 
+        summary = "Run experiment", 
+        description = "Run experiment with specified dataset, project and workflow configuration", 
+        responses = {
+            @ApiResponse(responseCode = "200", description = "Experiment run started", 
+                content = @Content(schema = @Schema(implementation = ExperimentRunResponse.class)))})
+    @RateLimited
+    public Response runExperiment(
+            @RequestBody(content = @Content(schema = @Schema(implementation = ExperimentRunRequest.class))) 
+            @NotNull @Valid ExperimentRunRequest request,
+            @HeaderParam("Authorization") String authorization) {
+
+        log.info("Running experiment {}", request);
+        
+        ExperimentRunResponse response = experimentService.runExperiment(request, authorization)
+                .contextWrite(ctx -> setRequestContext(ctx, requestContext))
+                .block();
+        
+        log.info("Experiment started. Status: '{}', Task ID: '{}'", 
+                response.status(), response.taskId());
+        return Response.ok(response).build();
     }
 }
