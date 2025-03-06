@@ -42,7 +42,7 @@ services:
       AUTH_DOMAIN: ${AUTH_DOMAIN:-}
       AUTH_CLIENT_ID: ${AUTH_CLIENT_ID:-}
       AUTH_AUDIENCE: ${AUTH_AUDIENCE:-}
-      AIFINDR_API_URL: ${AIFINDR_API_URL:-}
+      AIFINDR_DOMAIN: ${AIFINDR_DOMAIN:-}
     healthcheck:
       test: [ "CMD", "curl", "--fail", "--location", "--request", "GET", "http://localhost:5173" ]
       interval: 1s
