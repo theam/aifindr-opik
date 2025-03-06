@@ -14,7 +14,6 @@ window.RUNTIME_CONFIG = {
 EOF
 
 echo "Configuration generated:"
-cat ${APP_DIR}/config.js
 
 # Iniciar Nginx
 exec nginx -g "daemon off;" 
