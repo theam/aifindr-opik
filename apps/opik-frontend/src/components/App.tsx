@@ -16,15 +16,27 @@ const queryClient = new QueryClient({
   },
 });
 
+// Declaración para TypeScript
+declare global {
+  interface Window {
+    RUNTIME_CONFIG: {
+      AUTH_DOMAIN: string;
+      AUTH_CLIENT_ID: string;
+      AUTH_AUDIENCE: string;
+      AIFINDR_DOMAIN: string;
+    };
+  }
+}
+
 function App() {
   useCustomScrollbarClass();
 
   const auth0Config = {
-    domain: import.meta.env.VITE_AUTH_DOMAIN || '',
-    clientId: import.meta.env.VITE_AUTH_CLIENT_ID || '',
+    domain: window.RUNTIME_CONFIG?.AUTH_DOMAIN || import.meta.env.VITE_AUTH_DOMAIN || '',
+    clientId: window.RUNTIME_CONFIG?.AUTH_CLIENT_ID || import.meta.env.VITE_AUTH_CLIENT_ID || '',
     authorizationParams: {
       redirect_uri: window.location.origin,
-      audience: import.meta.env.VITE_AUTH_AUDIENCE,
+      audience: window.RUNTIME_CONFIG?.AUTH_AUDIENCE || import.meta.env.VITE_AUTH_AUDIENCE,
     },
   };
 
