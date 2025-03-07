@@ -15,8 +15,8 @@ services:
 
   backend:
     environment:
-      AUTH_ENABLED: ${AUTH_ENABLED:-false}
-      AUTH_IS_AUTH0: ${AUTH_IS_AUTH0:-false}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      AUTH_IS_AUTH0: ${AUTH_IS_AUTH0:-true}
       AUTH_DOMAIN: ${AUTH_DOMAIN:-}
       EXPERIMENT_RUNNER_URL: ${EXPERIMENT_RUNNER_URL:-}
     ports:
