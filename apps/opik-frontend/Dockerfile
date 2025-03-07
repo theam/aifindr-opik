@@ -30,7 +30,7 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 #Override the default nginx configuration
-COPY default.conf /etc/nginx/conf.d/default.conf
+COPY default.template.conf /etc/nginx/conf.d/default.template.conf
 
 RUN sed -i '/access_log.*main/d' /etc/nginx/nginx.conf
 
