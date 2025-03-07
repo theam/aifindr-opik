@@ -29,6 +29,9 @@ COPY --from=builder /opt/frontend/dist /usr/share/nginx/html
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+#Override the default nginx configuration
+COPY default.conf /etc/nginx/conf.d/default.conf
+
 RUN sed -i '/access_log.*main/d' /etc/nginx/nginx.conf
 
 EXPOSE 5173
