@@ -5,7 +5,7 @@ import axios from "axios";
 // Obtain the base URL from the runtime config
 const getBaseURL = () => {
   if (!window.RUNTIME_CONFIG && !import.meta.env.VITE_AIFINDR_DOMAIN) {
-    console.warn('AIFINDR_DOMAIN is not set neither in runtime nor in environment variables');
+    console.error('AIFINDR_DOMAIN is not set neither in runtime nor in environment variables');
   }
   return window.RUNTIME_CONFIG?.AIFINDR_DOMAIN || import.meta.env.VITE_AIFINDR_DOMAIN || '';
 };
