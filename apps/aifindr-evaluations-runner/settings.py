@@ -2,7 +2,6 @@ import os
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -11,12 +10,6 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     ELLMENTAL_API_URL: str = ""
     ELLMENTAL_API_KEY: str = ""
-
-    @field_validator("*")
-    def no_empty_strings(cls, v):
-        if isinstance(v, str) and not v:
-            raise ValueError("Field cannot be empty")
-        return v
 
 
 class EnvSettings(BaseSettings):

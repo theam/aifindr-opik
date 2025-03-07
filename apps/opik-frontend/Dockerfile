@@ -11,17 +11,9 @@ RUN npm install
 COPY . .
 
 ARG OPIK_VERSION
-ARG AUTH_DOMAIN
-ARG AUTH_CLIENT_ID
-ARG AUTH_AUDIENCE
-ARG AIFINDR_DOMAIN
 
 ENV VITE_APP_VERSION=${OPIK_VERSION}
-ENV VITE_AUTH_DOMAIN=${AUTH_DOMAIN}
-ENV VITE_AUTH_CLIENT_ID=${AUTH_CLIENT_ID}
-ENV VITE_AUTH_AUDIENCE=${AUTH_AUDIENCE}
 ENV VITE_PLUGINS_SCOPE=aifindr
-ENV VITE_AIFINDR_DOMAIN=${AIFINDR_DOMAIN}
 
 ENV NODE_OPTIONS="--max-old-space-size=8192"
 
@@ -34,9 +26,15 @@ FROM nginx:1.27.3-alpine3.20
 # Copy the built files from the builder stage
 COPY --from=builder /opt/frontend/dist /usr/share/nginx/html
 
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+#Override the default nginx configuration
+COPY default.template.conf /etc/nginx/conf.d/default.template.conf
+
 RUN sed -i '/access_log.*main/d' /etc/nginx/nginx.conf
 
 EXPOSE 5173
 
 # Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
